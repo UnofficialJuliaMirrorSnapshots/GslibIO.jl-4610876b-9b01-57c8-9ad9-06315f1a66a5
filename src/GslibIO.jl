@@ -1,5 +1,4 @@
 # ------------------------------------------------------------------
-# Copyright (c) 2017, Júlio Hoffimann Mendes <juliohm@stanford.edu>
 # Licensed under the ISC License. See LICENCE in the project root.
 # ------------------------------------------------------------------
 
@@ -9,17 +8,7 @@ using FileIO
 using Printf
 using DelimitedFiles
 
-"""
-    GslibGRID
-
-Type holding all necessary information for saving/loading properties.
-"""
-struct GslibGRID{T<:AbstractFloat,A<:AbstractArray{T,3}}
-  properties::Vector{A}
-  propnames::Vector{String}
-  origin::NTuple{3,T}
-  spacing::NTuple{3,T}
-end
+using GeoStatsDevTools
 
 """
     load(file)
@@ -27,32 +16,31 @@ end
 Load grid properties from `file`.
 """
 function load(file::File{format"GSLIB"})
-  f = open(file)
-  fs = stream(f)
+  open(file) do f
+    fs = stream(f)
 
-  # skip header
-  skipchars(_ -> false, fs, linecomment='#')
+    # skip header
+    skipchars(_ -> false, fs, linecomment='#')
 
-  # read dimensions
-  nx, ny, nz = split(readline(fs))
-  ox, oy, oz = split(readline(fs))
-  dx, dy, dz = split(readline(fs))
-  nx, ny, nz = map(s -> parse(Int, s), [nx,ny,nz])
-  ox, oy, oz = map(s -> parse(Float64, s), [ox,oy,oz])
-  dx, dy, dz = map(s -> parse(Float64, s), [dx,dy,dz])
+    # read dimensions
+    nx, ny, nz = split(readline(fs))
+    ox, oy, oz = split(readline(fs))
+    sx, sy, sz = split(readline(fs))
+    nx, ny, nz = map(s -> parse(Int, s), [nx,ny,nz])
+    ox, oy, oz = map(s -> parse(Float64, s), [ox,oy,oz])
+    sx, sy, sz = map(s -> parse(Float64, s), [sx,sy,sz])
 
-  # read property names
-  propnames = String.(split(readline(fs)))
+    # read property names
+    vars = Symbol.(split(readline(fs)))
 
-  # read property values
-  P = readdlm(fs)
+    # read property values
+    X = readdlm(fs)
 
-  close(f)
+    # create data dictionary
+    data = Dict(vars[j] => reshape(X[:,j], nx, ny, nz) for j in 1:size(X,2))
 
-  # reshape properties to grid size
-  properties = [reshape(P[:,j], nx, ny, nz) for j=1:size(P,2)]
-
-  GslibGRID(properties, propnames, (ox,oy,oz), (dx,dy,dz))
+    RegularGridData(data, (ox,oy,oz), (sx,sy,sz))
+  end
 end
 
 """
@@ -63,7 +51,7 @@ Save 1D `properties`, which originally had 3D size `propsize`.
 function save(file::File{format"GSLIB"},
               properties::Vector{V}, propsize::Tuple;
               origin=(0.,0.,0.), spacing=(1.,1.,1.),
-              header="", propnames="") where {T<:AbstractFloat,V<:AbstractArray{T,1}}
+              header="", propnames="") where {T<:Real,V<:AbstractArray{T,1}}
   # default property names
   isempty(propnames) && (propnames = ["prop$i" for i=1:length(properties)])
   @assert length(propnames) == length(properties) "number of property names must match number of properties"
@@ -96,7 +84,7 @@ end
 Save 3D `properties` by first flattening them into 1D properties.
 """
 function save(file::File{format"GSLIB"}, properties::Vector{A};
-              kwargs...) where {T<:AbstractFloat,A<:AbstractArray{T,3}}
+              kwargs...) where {T<:Real,A<:AbstractArray{T,3}}
   # sanity checks
   @assert length(Set(size.(properties))) == 1 "properties must have the same size"
 
@@ -115,8 +103,22 @@ end
 Save single 3D `property` by wrapping it into a singleton collection.
 """
 function save(file::File{format"GSLIB"},
-              property::A; kwargs...) where {T<:AbstractFloat,A<:AbstractArray{T,3}}
+              property::A; kwargs...) where {T<:Real,A<:AbstractArray{T,3}}
   save(file, [property]; kwargs...)
+end
+
+"""
+    save(file, grid)
+
+Save `grid` of type `RegularGridData` to file.
+"""
+function save(file::File{format"GSLIB"}, grid::RegularGridData{<:Any,3})
+  dict = values(grid)
+  propnames = collect(keys(dict))
+  properties = collect(values(dict))
+
+  save(file, properties, size(grid), origin=origin(grid),
+       spacing=spacing(grid), propnames=propnames)
 end
 
 end
