@@ -1,16 +1,17 @@
 name = "GslibIO"
 uuid = "4610876b-9b01-57c8-9ad9-06315f1a66a5"
 author = "Júlio Hoffimann <julio.hoffimann@gmail.com>"
-version = "0.2.1"
+version = "0.3.1"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-GeoStatsDevTools = "19e549d1-356f-5655-9f3d-c1d6136da705"
+GeoStatsBase = "323cb8eb-fbf6-51c0-afd0-f8fba70507b2"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
-FileIO = "1"
+FileIO = "^1.0"
+GeoStatsBase = "^0.5"
 julia = "1"
 
 [extras]
